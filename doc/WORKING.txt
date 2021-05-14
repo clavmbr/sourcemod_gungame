@@ -1,0 +1,18 @@
+Looser rank:
+    Create:
+        ShowBotMenu
+        PlayerLoseData
+        GG_GetClientLooses
+        GG_GetPlayerPlaceInLooserStat  /* HINT: gungame_stats */
+        GG_GetPlayerPlaceInLooserStat /* HINT: gungame_stats */
+        GG_CountPlayersInLooserStat /* HINT: gungame_stats */
+
+    Search:
+       PlayerPlaceData
+       GG_OnLoadRank
+       GG_OnLoadPlayerWins
+       GG_ShowRank   /* HINT: gungame_stats */
+
+
+    Edited:
+        gungame_stats.sp

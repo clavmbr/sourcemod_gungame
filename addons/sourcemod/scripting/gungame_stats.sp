@@ -39,12 +39,14 @@ public OnPluginStart()
 {
     FwdLoadRank = CreateGlobalForward("GG_OnLoadRank", ET_Ignore);
     FwdLoadPlayerWins = CreateGlobalForward("GG_OnLoadPlayerWins", ET_Ignore, Param_Cell);
-    
+
     LoadTranslations("gungame_stats");
     OnCreateKeyValues();
 
     RegConsoleCmd("top10", _CmdTop);
     RegConsoleCmd("top", _CmdTop);
+    RegConsoleCmd("bot", _CmdBot);
+    RegConsoleCmd("bot10", _CmdBot);
     RegConsoleCmd("rank", _CmdRank);
     RegAdminCmd("gg_rebuild", _CmdRebuild, GUNGAME_ADMINFLAG, "Rebuilds the top rank from the player data information");
     RegAdminCmd("gg_import", _CmdImport, GUNGAME_ADMINFLAG, "Imports the winners file from es gungame.");
@@ -111,6 +113,7 @@ public OnClientDisconnect(client)
 {
     g_PlayerWinsLoaded[client] = false;
     PlayerWinsData[client] = 0;
+    PlayerLoseData[client] = 0;
     PlayerPlaceData[client] = 0;
 }
 
@@ -119,6 +122,15 @@ public Action:_CmdTop(client, args)
     if ( IsActive )
     {
         ShowTopMenu(client);
+    }
+    return Plugin_Handled;
+}
+
+public Action:_CmdBot(client, args)
+{
+    if ( IsActive )
+    {
+        ShowBotMenu(client);
     }
     return Plugin_Handled;
 }
@@ -138,7 +150,7 @@ EndProcess()
     {
         return;
     }
-    
+
     SaveProcess = true;
     SavePlayerDataInfo();
 }
@@ -147,6 +159,10 @@ public GG_OnWinner(client, const String:Weapon[], victim) {
     if ( IsClientInGame(client) && !IsFakeClient(client) ) {
         if ( g_Cfg_DontAddWinsOnBot && victim && IsFakeClient(victim) ) {
             return;
+        }
+        else if ( !IsFakeClient(victim) ){
+            ++PlayerLoseData[victim];
+            SavePlayerData(victim);
         }
 
         ++PlayerWinsData[client];
