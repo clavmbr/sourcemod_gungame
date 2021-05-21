@@ -5,20 +5,20 @@ SqlConnect()
     {
         return;
     }
-    
+
     decl String:error[256];
     if ( SQL_CheckConfig("gungame") ) {
         g_DbConnection = SQL_Connect("gungame", false, error, sizeof(error));
     } else {
         g_DbConnection = SQL_Connect("storage-local", false, error, sizeof(error));
     }
-    
+
     if ( g_DbConnection == INVALID_HANDLE )
     {
         SetFailState("Unable to connect to database (%s)", error);
         return;
     }
-    
+
     new String:ident[16];
     SQL_ReadDriver(g_DbConnection, ident, sizeof(ident));
     if ( strcmp(ident, "sqlite") == 0 ) {
@@ -33,9 +33,9 @@ SqlConnect()
         SetFailState("Unknown db type (%s)", ident);
         return;
     }
-    
+
     SQL_LockDatabase(g_DbConnection);
-    
+
     new bool:tableExists = false;
     #if defined SQL_DEBUG
         LogError("[DEBUG-SQL] %s", g_sql_checkTableExists[g_DbType]);
@@ -51,7 +51,7 @@ SqlConnect()
         tableExists = bool:SQL_GetRowCount(result);
         CloseHandle(result);
     }
-    
+
     if ( !tableExists )
     {
         #if defined SQL_DEBUG
@@ -90,6 +90,19 @@ SqlConnect()
                 return;
             }
         }
+        if ( g_sql_createPlayerTableIndex3[g_DbType][0] != 0 )
+        {
+            #if defined SQL_DEBUG
+                LogError("[DEBUG-SQL] %s", g_sql_createPlayerTableIndex3[g_DbType]);
+            #endif
+            if ( !SQL_FastQuery(g_DbConnection, g_sql_createPlayerTableIndex3[g_DbType]) )
+            {
+                SQL_GetError(g_DbConnection, error, sizeof(error));
+                LogError("Could not create players table index 3 (error: %s)", error);
+                SQL_UnlockDatabase(g_DbConnection);
+                return;
+            }
+        }
     }
     SQL_UnlockDatabase(g_DbConnection);
 }
@@ -98,22 +111,34 @@ SqlConnect()
 SavePlayerData(client)
 {
     new wins = PlayerWinsData[client];
-    if ( !wins )
+    new looses = PlayerLoosesData[client];
+    bool newplayer = false;
+    if ( !wins && !looses )
     {
         return;
     }
-    
+    if (  (wins == 1) && (!looses) )
+    {
+        newplayer=true;
+        looses=0;
+    }
+    if ( (!wins)  && (looses==1) )
+    {
+        newplayer=true;
+        wins=0;
+    }
+
     decl String:auth[64], String:name[MAX_NAME_SIZE];
     GetClientAuthString(client, auth, sizeof(auth));
     GetClientName(client, name, sizeof(name));
 
     new bufferLen = sizeof(name) * 2 + 1;
     decl String:nameQuoted[bufferLen];
- 
+
     SQL_EscapeString(g_DbConnection, name, nameQuoted, bufferLen);
-        
+
     decl String:query[1024];
-    Format(query, sizeof(query), wins == 1 ? g_sql_insertPlayer : g_sql_updatePlayerByAuth, wins, nameQuoted, auth);
+    Format(query, sizeof(query), newplayer == true ? g_sql_insertPlayer : g_sql_updatePlayerByAuth, wins, nameQuoted, auth);
     #if defined SQL_DEBUG
         LogError("[DEBUG-SQL] %s", query);
     #endif
@@ -131,6 +156,7 @@ public T_SavePlayerData(Handle:owner, Handle:result, const String:error[], any:d
 
     // Reload top rank data after winner has beed updated in the database
     LoadRank();
+    LoadLoosesRank();
 }
 
 // non-threaded
@@ -174,9 +200,56 @@ GetPlayerPlace(client)
     return place;
 }
 
+// non-threaded
+GetPlayerLoosesPlaceInStat(client)
+{
+    // get from cache
+    if ( !PlayerLoosesData[client] || PlayerLoosesPlaceData[client] )
+    {
+        return PlayerLoosesPlaceData[client];
+    }
+    // get from database
+    PlayerLoosesPlaceData[client] = GetPlayerLoosesPlace(client);
+    return PlayerLoosesPlaceData[client];
+}
+
+// non-threaded
+GetPlayerLoosesPlace(client)
+{
+    decl String:query[1024];
+    Format(query, sizeof(query), g_sql_getPlayerPlaceByLooses, PlayerLoosesData[client]);
+    SQL_LockDatabase(g_DbConnection);
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] %s", query);
+    #endif
+    new Handle:result = SQL_Query(g_DbConnection, query);
+    if ( result == INVALID_HANDLE )
+    {
+        new String:error[255];
+        SQL_GetError(g_DbConnection, error, sizeof(error));
+        LogError("Failed get player looses place in stats (error: %s)", error);
+        SQL_UnlockDatabase(g_DbConnection);
+        return 0;
+    }
+    SQL_UnlockDatabase(g_DbConnection);
+    new place;
+    if ( SQL_FetchRow(result) )
+    {
+        place = SQL_FetchInt(result, 0) + 1;
+    }
+    CloseHandle(result);
+    return place;
+}
+
+
 CountPlayersInStat()
 {
     return TotalWinners;
+}
+
+CountPlayersInLooserStat()
+{
+    return TotalLoosers;
 }
 
 // threaded
@@ -186,11 +259,12 @@ RetrieveKeyValues(client, const String:auth[])
     {
         g_PlayerWinsLoaded[client] = true;
         PlayerWinsData[client] = 0;
-        
+        PlayerLoosesData[client] = 0;
+
         #if defined SQL_DEBUG
             LogError("[DEBUG-SQL] FORWARD PLAYER WINS LOADED client=%i is BOT", client);
         #endif
-        
+
         Call_StartForward(FwdLoadPlayerWins);
         Call_PushCell(client);
         Call_Finish();
@@ -221,7 +295,8 @@ public T_RetrieveKeyValues(Handle:owner, Handle:result, const String:error[], an
     {
         new id = SQL_FetchInt(result, 0);
         PlayerWinsData[client] = SQL_FetchInt(result, 1);
-        
+        PlayerLoosesData[client] = SQL_FetchInt(result, 2);
+
         // update player timestamp
         decl String:query[1024];
         Format(query, sizeof(query), g_sql_updatePlayerTsById, id);
@@ -233,9 +308,10 @@ public T_RetrieveKeyValues(Handle:owner, Handle:result, const String:error[], an
     else
     {
         PlayerWinsData[client] = 0;
+        PlayerLoosesData[client] = 0;
     }
     #if defined SQL_DEBUG
-        LogError("[DEBUG-SQL] FORWARD PLAYER WINS LOADED client=%i, wins=%i", client, PlayerWinsData[client]);
+        LogError("[DEBUG-SQL] FORWARD PLAYER WINS LOADED client=%i, wins=%i, looses=%i", client, PlayerWinsData[client], PlayerLoosesData[client]);
     #endif
     Call_StartForward(FwdLoadPlayerWins);
     Call_PushCell(client);
@@ -284,6 +360,7 @@ OnCreateKeyValues()
 {
     SqlConnect();
     LoadRank();
+    LoadLoosesRank();
 }
 
 // non-threaded
@@ -311,6 +388,8 @@ public Action:_CmdImport(client, args)
     decl String:query[1024], String:error[255];
     decl Wins, String:Name[64];
     decl ImportedWins, String:Auth[64];
+    decl Looses;
+    int ImportedLooses = 0;
 
     new bufferLen = sizeof(Name) * 2 + 1;
     decl String:nameQuoted[bufferLen];
@@ -325,7 +404,7 @@ public Action:_CmdImport(client, args)
             continue;
         }
 
-        // Load player data        
+        // Load player data
         SQL_LockDatabase(g_DbConnection);
         Format(query, sizeof(query), g_sql_getPlayerByAuth, Auth);
         #if defined SQL_DEBUG
@@ -345,21 +424,23 @@ public Action:_CmdImport(client, args)
         if ( SQL_FetchRow(result) )
         {
             Wins = SQL_FetchInt(result, 1);
-            SQL_FetchString(result, 2, Name, sizeof(Name));
+            Looses = SQL_FetchInt(result, 2);
+            SQL_FetchString(result, 3, Name, sizeof(Name));
         }
         else
         {
             Wins = 0;
+            Looses = 0;
         }
         CloseHandle(result);
-        
+
         if ( Wins ) {
             SQL_EscapeString(g_DbConnection, Name, nameQuoted, bufferLen);
-            Format(query, sizeof(query), g_sql_updatePlayerByAuth, Wins + ImportedWins, nameQuoted, Auth);
+            Format(query, sizeof(query), g_sql_updatePlayerByAuth, Wins + ImportedWins, Looses, nameQuoted, Auth);
         } else {
             KvGetString(KvGunGame, "name", Name, sizeof(Name));
             SQL_EscapeString(g_DbConnection, Name, nameQuoted, bufferLen);
-            Format(query, sizeof(query), g_sql_insertPlayer, ImportedWins, nameQuoted, Auth);
+            Format(query, sizeof(query), g_sql_insertPlayer, ImportedWins, ImportedLooses, nameQuoted, Auth);
         }
 
         // SavePlayerData
@@ -381,7 +462,7 @@ public Action:_CmdImport(client, args)
     while(KvGotoNextKey(KvGunGame));
 
     CloseHandle(KvGunGame);
-    
+
     /* Reload the players wins in memory */
     for ( new i = 1; i <= MaxClients; i++ )
     {
@@ -422,6 +503,7 @@ public Action:_CmdImportDb(client, args)
     decl String:query[1024], String:error[255];
     decl Wins, String:Name[64];
     decl ImportedWins, String:Auth[64];
+    decl Looses, ImportedLooses;
 
     new bufferLen = sizeof(Name) * 2 + 1;
     decl String:nameQuoted[bufferLen];
@@ -430,13 +512,17 @@ public Action:_CmdImportDb(client, args)
     {
         KvGetSectionName(KvGunGame, Auth, sizeof(Auth));
         ImportedWins = KvGetNum(KvGunGame, "Wins");
+        ImportedLooses = KvGetNum(KvGunGame, "Looses");
 
         if ( !ImportedWins || Auth[0] != 'S' )
         {
             continue;
         }
+        if ( !ImportedLooses ){
+            ImportedLooses = 0;
+        }
 
-        // Load player data        
+        // Load player data
         SQL_LockDatabase(g_DbConnection);
         Format(query, sizeof(query), g_sql_getPlayerByAuth, Auth);
         #if defined SQL_DEBUG
@@ -456,21 +542,23 @@ public Action:_CmdImportDb(client, args)
         if ( SQL_FetchRow(result) )
         {
             Wins = SQL_FetchInt(result, 1);
-            SQL_FetchString(result, 2, Name, sizeof(Name));
+            Looses = SQL_FetchInt(result, 2);
+            SQL_FetchString(result, 3, Name, sizeof(Name));
         }
         else
         {
             Wins = 0;
+            Looses = 0;
         }
         CloseHandle(result);
-        
+
         if ( Wins ) {
             SQL_EscapeString(g_DbConnection, Name, nameQuoted, bufferLen);
-            Format(query, sizeof(query), g_sql_updatePlayerByAuth, Wins + ImportedWins, nameQuoted, Auth);
+            Format(query, sizeof(query), g_sql_updatePlayerByAuth, Wins + ImportedWins, Looses + ImportedLooses, nameQuoted, Auth);
         } else {
             KvGetString(KvGunGame, "Name", Name, sizeof(Name));
             SQL_EscapeString(g_DbConnection, Name, nameQuoted, bufferLen);
-            Format(query, sizeof(query), g_sql_insertPlayer, ImportedWins, nameQuoted, Auth);
+            Format(query, sizeof(query), g_sql_insertPlayer, ImportedWins, ImportedLooses, nameQuoted, Auth);
         }
 
         // SavePlayerData
@@ -492,7 +580,7 @@ public Action:_CmdImportDb(client, args)
     while(KvGotoNextKey(KvGunGame));
 
     CloseHandle(KvGunGame);
-    
+
     /* Reload the players wins in memory */
     for ( new i = 1; i <= MaxClients; i++ )
     {
@@ -512,6 +600,7 @@ public Action:_CmdImportDb(client, args)
 public Action:_CmdRebuild(client, args)
 {
     LoadRank();
+    LoadLoosesRank();
     ReplyToCommand(client, "[GunGame] Top rank has been rebuilt");
     return Plugin_Handled;
 }
@@ -569,20 +658,36 @@ public Action:_CmdReset(client, args)
             return Plugin_Handled;
         }
     }
+    if ( g_sql_createPlayerTableIndex3[g_DbType][0] != 0 )
+    {
+        #if defined SQL_DEBUG
+            LogError("[DEBUG-SQL] %s", g_sql_createPlayerTableIndex3[g_DbType]);
+        #endif
+        if ( !SQL_FastQuery(g_DbConnection, g_sql_createPlayerTableIndex3[g_DbType]) )
+        {
+            SQL_GetError(g_DbConnection, error, sizeof(error));
+            LogError("Could not create players table index 3 (error: %s)", error);
+            SQL_UnlockDatabase(g_DbConnection);
+            return Plugin_Handled;
+        }
+    }
     SQL_UnlockDatabase(g_DbConnection);
     ReplyToCommand(client, "[GunGame] Stats has been reseted.");
-    
+
     // reset current players data
     for (new i = 1; i <= MAXPLAYERS; i++)
     {
         PlayerWinsData[i] = 0;
+        PlayerLoosesData[i] = 0;
         PlayerPlaceData[i] = 0;
+        PlayerLoosesPlaceData[i] = 0;
     }
-    
+
     // reset top 10 data
     TotalWinners = 0;
     g_cfgHandicapTopWins = 0;
-    
+    g_cfgHandicapTopLooses = 0;
+
     return Plugin_Handled;
 }
 
@@ -596,7 +701,7 @@ LoadRank()
     {
         PlayerPlaceData[i] = 0;
     }
-    
+
     CountWinners();
 }
 
@@ -642,7 +747,7 @@ LoadTopRankData()
         Call_Finish();
         return;
     }
-    
+
     if ( g_cfgHandicapTopRank >= TotalWinners )
     {
         g_cfgHandicapTopWins = 1;
@@ -672,7 +777,7 @@ public T_LoadTopRankData(Handle:owner, Handle:result, const String:error[], any:
         Call_Finish();
         return;
     }
-    
+
     if ( SQL_FetchRow(result) )
     {
         g_cfgHandicapTopWins = SQL_FetchInt(result, 1);
@@ -701,7 +806,7 @@ ShowRank(client)
         ShowRankInChat(client);
         return;
     }
-    
+
     decl String:query[1024];
     Format(query, sizeof(query), g_sql_getPlayerPlaceByWins, wins);
     #if defined SQL_DEBUG
@@ -778,3 +883,194 @@ bool:IsPlayerInTopRank(client)
     return true;
 }
 
+// threaded
+LoadLoosesRank()
+{
+    // reset top 10 data
+    TotalLoosers = 0;
+    g_cfgHandicapTopLooses = 0;
+    for ( new i = 1; i <= MAXPLAYERS; i++ )
+    {
+        PlayerLoosesPlaceData[i] = 0;
+    }
+
+    CountLoosers();
+}
+
+// threaded
+CountLoosers()
+{
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] %s", g_sql_getPlayersCount);
+    #endif
+    SQL_TQuery(g_DbConnection, T_CountLoosers, g_sql_getPlayersCount);
+}
+
+public T_CountLoosers(Handle:owner, Handle:result, const String:error[], any:data)
+{
+    if ( result == INVALID_HANDLE )
+    {
+        LogError("Failed to count players in stat (error: %s)", error);
+        return;
+    }
+    new count = 0;
+    if ( SQL_FetchRow(result) )
+    {
+        count = SQL_FetchInt(result, 0);
+    }
+    TotalLoosers = count;
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] Found %i loosers in the rank table", TotalLoosers);
+    #endif
+
+    LoadTopLoosersRankData();
+}
+
+// threaded
+LoadTopLoosersRankData()
+{
+    if ( !g_cfgHandicapBotRank )
+    {
+        g_cfgHandicapBotRank = 0;
+        #if defined SQL_DEBUG
+            LogError("[DEBUG-SQL] Handicap top looses = 0 (handicap top looses rank is disabled)");
+        #endif
+        Call_StartForward(FwdLoadRank);
+        Call_Finish();
+        return;
+    }
+
+    if ( g_cfgHandicapBotRank >= TotalLoosers )
+    {
+        g_cfgHandicapTopLooses = 1;
+        #if defined SQL_DEBUG
+            LogError("[DEBUG-SQL] Handicap top wins = 1 (handicap top rank is more then total winners)");
+        #endif
+        Call_StartForward(FwdLoadRank);
+        Call_Finish();
+        return;
+    }
+
+    decl String:query[1024];
+    Format(query, sizeof(query), g_sql_getBotPlayers, 1, g_cfgHandicapBotRank - 1);
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] %s", query);
+    #endif
+    SQL_TQuery(g_DbConnection, T_LoadTopLoosersRankData, query);
+}
+
+public T_LoadTopLoosersRankData(Handle:owner, Handle:result, const String:error[], any:data)
+{
+    if ( result == INVALID_HANDLE )
+    {
+        LogError("Failed to load looser rank data (error: %s)", error);
+        g_cfgHandicapTopLooses = 0;
+        Call_StartForward(FwdLoadRank);
+        Call_Finish();
+        return;
+    }
+
+    if ( SQL_FetchRow(result) )
+    {
+        g_cfgHandicapTopLooses = SQL_FetchInt(result, 1);
+        #if defined SQL_DEBUG
+            LogError("[DEBUG-SQL] Handicap top looses = %i", g_cfgHandicapTopLooses);
+        #endif
+    }
+    else
+    {
+        g_cfgHandicapTopLooses = 0;
+        #if defined SQL_DEBUG
+            LogError("[DEBUG-SQL] Handicap top looses = 0 (cant fetch rows from sql)");
+        #endif
+    }
+
+    Call_StartForward(FwdLoadRank);
+    Call_Finish();
+}
+
+// threaded
+ShowLooserRank(client)
+{
+    new looses = PlayerLoosesData[client];
+    if ( !looses || PlayerLoosesPlaceData[client] )
+    {
+        ShowLooserRankInChat(client);
+        return;
+    }
+
+    decl String:query[1024];
+    Format(query, sizeof(query), g_sql_getPlayerPlaceByLooses, looses);
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] %s", query);
+    #endif
+    SQL_TQuery(g_DbConnection, T_ShowLoosersRank, query, client);
+}
+
+public T_ShowLoosersRank(Handle:owner, Handle:result, const String:error[], any:client)
+{
+    /* Make sure the client didn't disconnect while the thread was running */
+    if ( !IsClientConnected(client) )
+    {
+        return;
+    }
+    if ( result == INVALID_HANDLE )
+    {
+        LogError("Failed to retrieve player place by looses (error: %s)", error);
+        return;
+    }
+    if ( SQL_FetchRow(result) )
+    {
+        PlayerLoosesPlaceData[client] = SQL_FetchInt(result, 0) + 1;
+    }
+    ShowLooserRankInChat(client);
+}
+
+ShowLooserRankInChat(client)
+{
+    decl String:name[MAX_NAME_SIZE];
+    GetClientName(client, name, sizeof(name));
+    if ( !PlayerLoosesPlaceData[client] )
+    {
+        CPrintToChatAllEx(client, "%t", "Rank: not looser", name);
+    }
+    else
+    {
+        for ( new i = 1; i <= MaxClients; i++ )
+        {
+            if ( IsClientInGame(i) && !IsFakeClient(i) )
+            {
+                decl String:subtext[64];
+                SetGlobalTransTarget(i);
+                FormatLanguageNumberTextEx(i, subtext, sizeof(subtext), PlayerLoosesPlaceData[client], "with looses");
+                CPrintToChatEx(i, client, "%t", "Rank: rank", name, PlayerLoosesPlaceData[client], subtext, TotalLoosers);
+            }
+        }
+    }
+}
+
+
+bool:IsPlayerInBotRank(client)
+{
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] IsPlayerInBotRank client=%i", client);
+    #endif
+    if ( !g_cfgHandicapTopLooses )
+    {
+        #if defined SQL_DEBUG
+            LogError("[DEBUG-SQL] ... false (top rank handicap looses not loaded)");
+        #endif
+        return false;
+    }
+    if ( PlayerLoosesData[client] < g_cfgHandicapTopLooses )
+    {
+        #if defined SQL_DEBUG
+            LogError("[DEBUG-SQL] ... false (player looses less then top rank handicap looses)");
+        #endif
+        return false;
+    }
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] ... true (player looses more or equal to top rank handicap looses)");
+    #endif
+    return true;
+}

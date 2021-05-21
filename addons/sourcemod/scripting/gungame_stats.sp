@@ -48,6 +48,7 @@ public OnPluginStart()
     RegConsoleCmd("bot", _CmdBot);
     RegConsoleCmd("bot10", _CmdBot);
     RegConsoleCmd("rank", _CmdRank);
+    RegConsoleCmd("loose", _CmdLoosesRank);
     RegAdminCmd("gg_rebuild", _CmdRebuild, GUNGAME_ADMINFLAG, "Rebuilds the top rank from the player data information");
     RegAdminCmd("gg_import", _CmdImport, GUNGAME_ADMINFLAG, "Imports the winners file from es gungame.");
     RegAdminCmd("gg_reset", _CmdReset, GUNGAME_ADMINFLAG, "Reset all gungame stats.");
@@ -113,8 +114,9 @@ public OnClientDisconnect(client)
 {
     g_PlayerWinsLoaded[client] = false;
     PlayerWinsData[client] = 0;
-    PlayerLoseData[client] = 0;
+    PlayerLoosesData[client] = 0;
     PlayerPlaceData[client] = 0;
+    PlayerLoosesPlaceData[client] = 0;
 }
 
 public Action:_CmdTop(client, args)
@@ -144,6 +146,15 @@ public Action:_CmdRank(client, args)
     return Plugin_Handled;
 }
 
+public Action:_CmdLoosesRank(client, args)
+{
+    if ( IsActive )
+    {
+        ShowLooserRank(client);
+    }
+    return Plugin_Handled;
+}
+
 EndProcess()
 {
     if ( SaveProcess )
@@ -160,8 +171,8 @@ public GG_OnWinner(client, const String:Weapon[], victim) {
         if ( g_Cfg_DontAddWinsOnBot && victim && IsFakeClient(victim) ) {
             return;
         }
-        else if ( !IsFakeClient(victim) ){
-            ++PlayerLoseData[victim];
+        if ( !IsFakeClient(victim) ){
+            ++PlayerLoosesData[victim];
             SavePlayerData(victim);
         }
 

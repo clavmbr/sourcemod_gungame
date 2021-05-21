@@ -11,6 +11,7 @@ new String:g_looserName[MAXPLAYERS+1][MAX_NAME_SIZE];
 new String:g_winnerName[MAX_NAME_SIZE];
 new bool:g_showWinnerOnRankUpdate = false;
 new g_winner;
+new g_looser;
 
 new State:ConfigState;
 new g_Cfg_DisplayWinnerMotd = 0;
@@ -21,7 +22,7 @@ public Plugin:myinfo =
 {
     name = "GunGame:SM Display Winner",
     description = "Shows a MOTD window with the winner's information when the game is won.",
-    author = "bl4nk, Otstrel.ru Team",
+    author = "bl4nk, Otstrel.ru Team, ",
     version = GUNGAME_VERSION,
     url = "http://forums.alliedmods.net, http://otstrel.ru"
 };
@@ -51,6 +52,7 @@ public GG_OnWinner(client, const String:weapon[], victim)
     GetClientName(client, g_winnerName, sizeof(g_winnerName));
     g_showWinnerOnRankUpdate = true;
     g_winner = client;
+    g_looser = victim;
 }
 
 public GG_OnLoadRank()
@@ -65,10 +67,14 @@ public GG_OnLoadRank()
     {
         return;
     }
-    
+
     if ( g_Cfg_ShowPlayerRankOnWin && IsClientInGame(g_winner) )
     {
         GG_ShowRank(g_winner);                  /* HINT: gungame_stats */
+    }
+if ( g_Cfg_ShowPlayerRankOnWin && IsClientInGame(g_looser) && !IsFakeClient(g_looser) )
+    {
+        GG_ShowLooserRank(g_looser);            /* HINT: gungame_stats */
     }
     if ( g_Cfg_DisplayWinnerMotd )
     {
@@ -80,14 +86,17 @@ public GG_OnLoadRank()
 
         new bool:urlHasParams = (StrContains(g_Cfg_DisplayWinnerUrl, "?", true) != -1);
 
-        Format(url, sizeof(url), "%s%swinnerName=%s&loserName=%s&wins=%i&place=%i&totalPlaces=%i", 
-            g_Cfg_DisplayWinnerUrl, 
+        Format(url, sizeof(url), "%s%swinnerName=%s&loserName=%s&wins=%i&place=%i&totalPlaces=%i&looses=%i&looserPlace%i&totallooserPlaces%i",
+            g_Cfg_DisplayWinnerUrl,
             urlHasParams? "&": "?",
-            winnerNameUrlEncoded, 
-            looserNameUrlEncoded, 
+            winnerNameUrlEncoded,
+            looserNameUrlEncoded,
             GG_GetClientWins(g_winner),         /* HINT: gungame_stats */
             GG_GetPlayerPlaceInStat(g_winner),  /* HINT: gungame_stats */
             GG_CountPlayersInStat()             /* HINT: gungame_stats */
+            GG_GetClientLooses(g_looser),         /* HINT: gungame_stats */
+            GG_GetPlayerPlaceInLooserStat(g_looser),  /* HINT: gungame_stats */
+            GG_CountPlayersInLooserStat()             /* HINT: gungame_stats */
         );
         for ( new i = 1; i <= MaxClients; i++ )
         {
@@ -130,4 +139,3 @@ public OnMapEnd()
 {
     g_showWinnerOnRankUpdate = false;
 }
-

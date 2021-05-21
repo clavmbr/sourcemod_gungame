@@ -1,5 +1,6 @@
 OnCreateNatives()
 {
+    //Winners
     CreateNative("GG_DisplayTop", __DisplayTop);
     CreateNative("GG_GetClientWins", __GetPlayerWins);
     CreateNative("GG_CountPlayersInStat", __CountPlayersInStat);
@@ -7,6 +8,13 @@ OnCreateNatives()
     CreateNative("GG_IsPlayerInTopRank", __IsPlayerInTopRank);
     CreateNative("GG_IsPlayerWinsLoaded", __IsPlayerWinsLoaded);
     CreateNative("GG_ShowRank", __ShowRank);
+    //Loosers
+    CreateNative("GG_DisplayBot", __DisplayBot);
+    CreateNative("GG_GetClientLooses", __GetPlayerLooses);
+    CreateNative("GG_CountPlayersInLooserStat", __CountPlayersInLooserStat);
+    CreateNative("GG_GetPlayerPlaceInLooserStat", __GetPlayerPlaceInLooserStat);
+    CreateNative("GG_IsPlayerInBotRank", __IsPlayerInBotRank);
+    CreateNative("GG_ShowLooserRank", __ShowLooserRank);
 }
 
 public __DisplayTop(Handle:plugin, numParams)
@@ -100,3 +108,81 @@ public __IsPlayerWinsLoaded(Handle:plugin, numParams)
     return g_PlayerWinsLoaded[client];
 }
 
+// loosers
+
+public __DisplayBot(Handle:plugin, numParams)
+{
+    new client = GetNativeCell(1);
+
+    if(client < 1 || client > MaxClients)
+    {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index [%d]", client);
+    } else if(!IsClientInGame(client)) {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Client is not currently ingame [%d]", client);
+    }
+
+    ShowBotMenu(client);
+    return 1;
+}
+
+public __ShowLooserRank(Handle:plugin, numParams)
+{
+    new client = GetNativeCell(1);
+
+    if(client < 1 || client > MaxClients)
+    {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index [%d]", client);
+    } else if(!IsClientInGame(client)) {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Client is not currently ingame [%d]", client);
+    }
+
+    ShowLoosersRank(client);
+    return 1;
+}
+
+public __GetPlayerPlaceInLooserStat(Handle:plugin, numParams)
+{
+    new client = GetNativeCell(1);
+
+    if(client < 1 || client > MaxClients)
+    {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index [%d]", client);
+    } else if(!IsClientInGame(client)) {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Client is not currently ingame [%d]", client);
+    }
+
+    return GetPlayerLoosesPlaceInStat(client);
+}
+
+public __CountPlayersInLooserStat(Handle:plugin, numParams)
+{
+    return CountPlayersInLooserStat();
+}
+
+public __GetPlayerLooses(Handle:plugin, numParams)
+{
+    new client = GetNativeCell(1);
+
+    if(client < 1 || client > MaxClients)
+    {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index [%d]", client);
+    } else if(!IsClientInGame(client)) {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Client is not currently ingame [%d]", client);
+    }
+
+    return PlayerLoosesData[client];
+}
+
+public __IsPlayerInBotRank(Handle:plugin, numParams)
+{
+    new client = GetNativeCell(1);
+
+    if(client < 1 || client > MaxClients)
+    {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index [%d]", client);
+    } else if(!IsClientInGame(client)) {
+        return ThrowNativeError(SP_ERROR_NATIVE, "Client is not currently ingame [%d]", client);
+    }
+
+    return IsPlayerInBotRank(client);
+}

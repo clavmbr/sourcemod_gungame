@@ -1,18 +1,71 @@
-Looser rank:
-    Create:
+    Looser rank:
+    To Create:
         ShowBotMenu
-        PlayerLoseData
-        GG_GetClientLooses
+        PlayerLoosesData -added on gungame_stats.h
+            GG_GetClientLooses
         GG_GetPlayerPlaceInLooserStat  /* HINT: gungame_stats */
         GG_GetPlayerPlaceInLooserStat /* HINT: gungame_stats */
         GG_CountPlayersInLooserStat /* HINT: gungame_stats */
+        g_sql_getBotPlayers - created on sql.h
+        PlayerLoosesPlaceData - created on sql.sp
+
+        GetPlayerLoosesPlaceInStat - created on sql.sp
+        GetPlayerLoosesPlace - created on sql.sp
+        g_cfgHandicapTopLooses -  g_cfgHandicapTopWins - gungame_stats.h
+        g_cfgHandicapBotRank - g_cfgHandicapTopRank - config.h (gungame_stats)
+        LoadLoosesRank - LoadRank  from 880 slq.sp
+
+        ShowLoosersRank
+
+        IsPlayerInBotRank - IsPlayerInTopRank - sql.sp
+
+- translations
+        with looses
+        Rank: not looser
+        BotPanel: Bot
+        looses
+        BotPanel: Name Looses
+        BotPanel: Place Name Looses
+        BotPanel: Bot short
+        BotPanel: There are currently no players in the bot
 
     Search:
-       PlayerPlaceData
        GG_OnLoadRank
        GG_OnLoadPlayerWins
        GG_ShowRank   /* HINT: gungame_stats */
 
+       g_PlayerWinsLoaded
+       TotalWinners
+
+       FwdLoadRank
 
     Edited:
         gungame_stats.sp
+
+
+
+New Index SQL
+    0 - ID
+    1 - Wins
+    2 - Looses
+    3 - authid
+    4 - name
+    5 - timestamp
+
+old - id, wins, name, authid
+g_sql_updatePlayerByAuth  wins, looses, name, timestamp, WHERE authid;
+g_sql_insertPlayer[] (wins, looses, name, timestamp, authid)
+g_sql_getPlayerByAuth id, wins, looses, name WHERE authid = '%s';
+
+slq.sp - 359
+    check 462
+    check 579
+
+
+
+GetClientAuthString
+RetrieveKeyValues
+CreateKeyValues
+FileToKeyValues
+
+%s%swinnerName=%s&loserName=%s&wins=%i&place=%i&totalPlaces=%i&looses=%i&looserPlace%i&totallooserPlaces%i
