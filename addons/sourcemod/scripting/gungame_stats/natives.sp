@@ -136,7 +136,7 @@ public __ShowLooserRank(Handle:plugin, numParams)
         return ThrowNativeError(SP_ERROR_NATIVE, "Client is not currently ingame [%d]", client);
     }
 
-    ShowLoosersRank(client);
+    ShowLooserRank(client);
     return 1;
 }
 

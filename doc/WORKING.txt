@@ -22,10 +22,8 @@
 - translations
         with looses
         Rank: not looser
-        BotPanel: Bot
         looses
-        BotPanel: Name Looses
-        BotPanel: Place Name Looses
+        BotPanel: Bot
         BotPanel: Bot short
         BotPanel: There are currently no players in the bot
 

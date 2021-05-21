@@ -63,6 +63,56 @@ native bool:GG_IsPlayerInTopRank(client); /* HINT: gungame_stats */
 native bool:GG_IsPlayerWinsLoaded(client); /* HINT: gungame_stats */
 
 /**
+ * Show the bot to the client.
+ *
+ * @param client        Player index.
+ * @noreturn
+ */
+native GG_DisplayBot(client); /* HINT: gungame_stats */
+
+/**
+ * Show the client's rank in chat.
+ *
+ * @param client        Player index.
+ * @noreturn
+ */
+native GG_ShowLooserRank(client); /* HINT: gungame_stats */
+
+/**
+ * Return current player's place in stat.
+ *
+ * @param client        Player index
+ * @return int
+ */
+native GG_GetPlayerPlaceInLooserStat(client); /* HINT: gungame_stats */
+
+
+/**
+ * Retrieves player current total looses.
+ *
+ * @param client        Player index
+ * @return int          Total player wins
+ */
+native GG_GetClientLooses(client); /* HINT: gungame_stats */
+
+/**
+ * Count number of loosers in stat.
+ *
+ * @return int
+ */
+native GG_CountPlayersInLooserStat(); /* HINT: gungame_stats */
+
+/**
+ * Check if player in bot rank.
+ *
+ * @param client        Player index.
+ * @return              True if player is in top rank, false if he is not.
+ */
+native bool:GG_IsPlayerInBotRank(client); /* HINT: gungame_stats */
+
+
+
+/**
  * Called when rank loaded.
  *
  * @noparam
@@ -100,5 +150,11 @@ public __pl_gungame_st_SetNTVOptional()
     MarkNativeAsOptional("GG_GetClientWins");
     MarkNativeAsOptional("GG_IsPlayerInTopRank");
     MarkNativeAsOptional("GG_IsPlayerWinsLoaded");
-}
+    MarkNativeAsOptional("GG_DisplayBot");
+    MarkNativeAsOptional("GG_ShowLooserRank");
+    MarkNativeAsOptional("GG_GetPlayerPlaceInLooserStat");
+    MarkNativeAsOptional("GG_CountPlayersInLooserStat");
+    MarkNativeAsOptional("GG_GetClientLooses");
+    MarkNativeAsOptional("GG_IsPlayerInBotRank");
 
+}

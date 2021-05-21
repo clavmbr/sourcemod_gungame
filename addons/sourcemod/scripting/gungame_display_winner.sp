@@ -72,7 +72,7 @@ public GG_OnLoadRank()
     {
         GG_ShowRank(g_winner);                  /* HINT: gungame_stats */
     }
-if ( g_Cfg_ShowPlayerRankOnWin && IsClientInGame(g_looser) && !IsFakeClient(g_looser) )
+    if ( g_Cfg_ShowPlayerRankOnWin && IsClientInGame(g_looser) && !IsFakeClient(g_looser) )
     {
         GG_ShowLooserRank(g_looser);            /* HINT: gungame_stats */
     }
@@ -93,7 +93,7 @@ if ( g_Cfg_ShowPlayerRankOnWin && IsClientInGame(g_looser) && !IsFakeClient(g_lo
             looserNameUrlEncoded,
             GG_GetClientWins(g_winner),         /* HINT: gungame_stats */
             GG_GetPlayerPlaceInStat(g_winner),  /* HINT: gungame_stats */
-            GG_CountPlayersInStat()             /* HINT: gungame_stats */
+            GG_CountPlayersInStat(),             /* HINT: gungame_stats */
             GG_GetClientLooses(g_looser),         /* HINT: gungame_stats */
             GG_GetPlayerPlaceInLooserStat(g_looser),  /* HINT: gungame_stats */
             GG_CountPlayersInLooserStat()             /* HINT: gungame_stats */

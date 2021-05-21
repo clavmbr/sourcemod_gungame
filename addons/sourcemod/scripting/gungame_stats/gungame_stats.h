@@ -10,6 +10,8 @@ new PlayerLoosesData[MAXPLAYERS + 1] = {0, ...};
 new bool:IsActive;
 
 new PlayerPlaceData[MAXPLAYERS + 1] = {0, ...};
+new PlayerLoosesPlaceData[MAXPLAYERS + 1] = {0, ...};
+
 new TotalWinners = 0;
 new TotalLoosers = 0;
 
