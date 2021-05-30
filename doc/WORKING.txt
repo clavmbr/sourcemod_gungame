@@ -67,3 +67,6 @@ CreateKeyValues
 FileToKeyValues
 
 %s%swinnerName=%s&loserName=%s&wins=%i&place=%i&totalPlaces=%i&looses=%i&looserPlace%i&totallooserPlaces%i
+
+
+Failed to create native "GG_DisplayTop", name is probably already in use

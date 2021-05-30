@@ -107,27 +107,18 @@ SqlConnect()
     SQL_UnlockDatabase(g_DbConnection);
 }
 
-// threaded
 SavePlayerData(client)
 {
     new wins = PlayerWinsData[client];
     new looses = PlayerLoosesData[client];
-    bool newplayer = false;
-    if ( !wins && !looses )
+    if ( !wins )
     {
         return;
     }
-    if (  (wins == 1) && (!looses) )
+    if ( !looses )
     {
-        newplayer=true;
-        looses=0;
+        looses = 0;
     }
-    if ( (!wins)  && (looses==1) )
-    {
-        newplayer=true;
-        wins=0;
-    }
-
     decl String:auth[64], String:name[MAX_NAME_SIZE];
     GetClientAuthString(client, auth, sizeof(auth));
     GetClientName(client, name, sizeof(name));
@@ -137,8 +128,54 @@ SavePlayerData(client)
 
     SQL_EscapeString(g_DbConnection, name, nameQuoted, bufferLen);
 
+    decl DBResultSet:ClientInDB;
+    decl String:query1[1024];
+    Format(query1, sizeof(query1), g_sql_getPlayerByAuth, auth);
+    ClientInDB =  SQL_Query(g_DbConnection, query1);
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] %s", query1);
+    #endif
+
     decl String:query[1024];
-    Format(query, sizeof(query), newplayer == true ? g_sql_insertPlayer : g_sql_updatePlayerByAuth, wins, nameQuoted, auth);
+    Format(query, sizeof(query), SQL_GetRowCount(ClientInDB) == 0 ? g_sql_insertPlayer : g_sql_updatePlayerByAuth, wins, looses, nameQuoted, auth);
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] %s", query);
+    #endif
+    SQL_TQuery(g_DbConnection, T_SavePlayerData, query);
+}
+
+SavePlayerLooserData(client)
+{
+    new wins = PlayerWinsData[client];
+    new looses = PlayerLoosesData[client];
+
+    if ( !looses )
+    {
+        return;
+    }
+    if ( !wins )
+    {
+        wins = 0;
+    }
+    decl String:auth[64], String:name[MAX_NAME_SIZE];
+    GetClientAuthString(client, auth, sizeof(auth));
+    GetClientName(client, name, sizeof(name));
+
+    new bufferLen = sizeof(name) * 2 + 1;
+    decl String:nameQuoted[bufferLen];
+
+    SQL_EscapeString(g_DbConnection, name, nameQuoted, bufferLen);
+
+    decl DBResultSet:ClientInDB;
+    decl String:query1[1024];
+    Format(query1, sizeof(query1), g_sql_getPlayerByAuth, auth);
+    ClientInDB =  SQL_Query(g_DbConnection, query1);
+    #if defined SQL_DEBUG
+        LogError("[DEBUG-SQL] %s", query1);
+    #endif
+
+    decl String:query[1024];
+    Format(query, sizeof(query), SQL_GetRowCount(ClientInDB) == 0 ? g_sql_insertPlayer : g_sql_updatePlayerByAuth, wins, looses, nameQuoted, auth);
     #if defined SQL_DEBUG
         LogError("[DEBUG-SQL] %s", query);
     #endif
@@ -1042,7 +1079,7 @@ ShowLooserRankInChat(client)
             {
                 decl String:subtext[64];
                 SetGlobalTransTarget(i);
-                FormatLanguageNumberTextEx(i, subtext, sizeof(subtext), PlayerLoosesPlaceData[client], "with looses");
+                FormatLanguageNumberTextEx(i, subtext, sizeof(subtext), PlayerLoosesData[client], "with looses");
                 CPrintToChatEx(i, client, "%t", "Rank: rank", name, PlayerLoosesPlaceData[client], subtext, TotalLoosers);
             }
         }

@@ -21,7 +21,7 @@
 
 public Plugin:myinfo =
 {
-    name = "GunGame:SM Stats",
+    name = "GunGame:SM Stats with Looses",
     author = GUNGAME_AUTHOR,
     description = "Stats for GunGame:SM",
     version = GUNGAME_VERSION,
@@ -173,7 +173,7 @@ public GG_OnWinner(client, const String:Weapon[], victim) {
         }
         if ( !IsFakeClient(victim) ){
             ++PlayerLoosesData[victim];
-            SavePlayerData(victim);
+            SavePlayerLooserData(victim);
         }
 
         ++PlayerWinsData[client];

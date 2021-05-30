@@ -20,7 +20,7 @@ if ($close < 1 || $close > 60) {
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <title>GunGame Winner</title>
+        <title>Ganhador GunGame </title>
         <?php if ($close) { ?>
         <script type="text/javascript">
             setTimeout('window.close()', <?php echo $close; ?>000);
@@ -28,13 +28,16 @@ if ($close < 1 || $close > 60) {
         <?php } ?>
     </head>
 <body>
-    <b><?php show("winnerName"); ?></b> Won!<hr><br />
-    <b><?php show("winnerName"); ?></b> won the game 
-        by killing <b><?php show("loserName"); ?></b><br /><br />
-    <b>Stats:</b><br />
-    Wins: <b><?php show("wins"); ?></b><br />
-    Place: <b><?php show("place"); ?></b> 
-        of <b><?php show("totalPlaces"); ?></b>
+    <b><?php show("winnerName"); ?></b> Ganhou!<hr><br />
+    <b><?php show("winnerName"); ?></b> Ganhou o jogo 
+        matando <b><?php show("loserName"); ?></b><br /><br />
+    <b>Ganhador:</b><br />
+    Vitorias: <b><?php show("wins"); ?></b><br />
+    Colocação: <b><?php show("place"); ?></b> 
+        de <b><?php show("totalPlaces"); ?></b>
+    <b>Entregador:</b><br />
+    Entregas: <b><?php show("looses"); ?></b><br />
+    Colocação: <b><?php show("looserPlace"); ?></b> 
+        de <b><?php show("totallooserPlaces"); ?></b>
 </body>
 </html>
-
